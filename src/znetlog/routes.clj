@@ -1,15 +1,18 @@
 (ns znetlog.routes
   (:require [compojure.core :refer :all]
             [znetlog.layout :as page]
-						[znetlog.logger.logger :as log]))
+            [znetlog.logger.core :as log]))
 
 (defroutes home
   (GET "/" req
-       "There's nothing to see here"))
+       (apply str (map  #(str "<br>" %) req))))
 
 (def api
-	(context "/api/logger/" req
-					 (GET "/video/:id/:username/:status"
-								[id username status]
-								(log/video id username status))))
+  (context "/api/log/" req
+           (POST "/:ctype" req
+                 (log/post! (:ctype (:route-params req))
+                           (:form-params req)))
+           (GET "/create-ctype/:ctype" [ctype]
+                (log/create! ctype))))
+
 
