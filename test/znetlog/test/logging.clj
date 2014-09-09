@@ -1,12 +1,13 @@
 (ns znetlog.test.logging
-  (:require [znetlog.logger.logger :as ini-mesti-banget-diganti]
+  (:require [znetlog.logger.logger :all]
             [expectations :refer :all]
             [clojure.java.io :as io]
             [com.ashafa.clutch :as cl]))
 
 (defn users [] ["dhika" "dodol" "kalfak"])
 (defn statuses [] ["premium" "regular"])
-(def crazy 350)
+(def crazy 10)
+
 (defn vids [] (range 1001 (+ crazy 1001)))
 
 (def last-couch (->> (cl/get-view db "videoLog" "byId")
