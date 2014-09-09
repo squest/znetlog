@@ -2,9 +2,13 @@
 	(:require [clojure.java.io :as io]
 						[clj-time.local :as tn]
 						[znetlog.dbase :as db]
-						[com.ashafa.clutch :as cl]))
+						[com.ashafa.clutch :as cl]
+						[com.stuartsierra.component :as component]))
 
-(def db db/couch)
+(def lbd (db/make-couch :couch-local
+												"config.edn"))
+
+(def db (:db (component/start ldb)))
 
 (defn- now
 	"To provide an instance of joda time and return a string type"

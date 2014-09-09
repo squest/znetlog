@@ -3,6 +3,7 @@
 						[znetlog.layout :as page]
 						[znetlog.logger.core :as log]))
 
+
 (defroutes home
 					 (GET "/" req
 								(apply str (map  #(str "<br>" %) req))))

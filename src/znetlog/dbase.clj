@@ -1,22 +1,31 @@
 (ns znetlog.dbase
-  (:require [cemerick.url :as curl]
-            [com.ashafa.clutch :as cl]))
+	(:require [cemerick.url :as curl]
+						[com.ashafa.clutch :as cl]
+						[com.stuartsierra.component :as component]
+						[clojure.java.io :as io]))
 
-(defn get-couch
-  [whichdb]
-  (-> (slurp "config.edn")
-      (read-string)
-      (get whichdb)))
+(defrecord CouchDB [whichdb dbconf]
+	component/Lifecycle
+	(start [this]
+		(let [dbconfig (-> (slurp dbconf)
+											 (read-string)
+											 (get whichdb))
+					couch (assoc (curl/url (:url dbconfig) (:dbname dbconfig))
+									:username (:username dbconfig)
+									:password (:password dbconfig))]
+			(assoc this
+				:db couch)))
 
-(defn current-couch
-  []
-  (get-couch :cloudant-development))
+	(stop [this]))
 
-(def couch (assoc (curl/url (:url (current-couch)) (:dbname (current-couch)))
-             :username (:username (current-couch))
-             :password (:password (current-couch))))
+(defn make-couch [whichdb dbconf]
+	(->CouchDB whichdb dbconf))
 
-(def quest "znet-logger")
-
-
-
+(defn persist!
+	"Persist whatever in fname into whichdb which is an instance of CouchDB"
+	[whichdb fname]
+	(let [{db :db} (component/start whichdb)
+				data (if (.exists (io/as-file fname))
+							 (read-string (slurp fname))
+							 nil)]
+		(cl/bulk-update db data)))

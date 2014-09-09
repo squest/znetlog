@@ -1,12 +1,15 @@
 (ns znetlog.logger.core
 	(:require [clojure.java.io :as io]
 						[clj-time.local :as tn]
-						[znetlog.dbase :as db]
+						[znetlog.dbase :refer [make-couch persist!]]
 						[com.ashafa.clutch :as cl]))
 
 ;; UTILITY FUNCTIONS FOR LOGGING CONTEXT
 
-(def db db/couch)
+(def fdir "resources/log-data/")
+(def ldb (make-couch :couch-local
+										 "config.edn"))
+(def clog (atom {}))
 
 (defn- now
 	"To provide an instance of joda time and return a string type"
@@ -14,9 +17,6 @@
 	(-> (tn/local-now)
 			(str)
 			(subs 0 10)))
-
-(def current-log (atom {}))
-(def fdir "resources/log-data/")
 
 (defn- log-file
 	"Returns the file-path name for a specific ctype and n as number 1/2
@@ -54,8 +54,8 @@
 (defn- switch-log!
 	"Switch log atom for a ctype with the supplied n value."
 	[ctype n]
-	(reset! current-log
-					(merge @current-log
+	(reset! clog
+					(merge @clog
 								 {ctype n})))
 
 (defn- init-log!
@@ -72,21 +72,37 @@
 (defn- ctype-exists?
 	"Returns true if a certain ctype exist and false otherwise"
 	[ctype]
-	(if (get @current-log ctype) true false))
+	(if (get @clog ctype) true false))
 
 (defn create!
 	"Create a new ctype, it will initialise the ctype. If ctype alredy
 	exists, it will log the existing content of files into database, and
 	reset the condition as if it's a newly created ctype with the
 	difference being the content already in the files would not be lost."
-	[ctype]
+	[db ctype]
 	(do (if (ctype-exists? ctype)
 				(persist! db ctype))
 			(init-log! ctype)))
 
 (defn post!
-	[form-map]
-	nil)
+	[ctype form-map]
+	(let [current-log (get clog ctype)
+				old-counter (read-log-counter-file ctype current-log)]
+		(if (zero? (rem old-counter 5000))
+			(do (future (persist! ldb
+														(log-file ctype
+																			current-log)))
+					)
+			(let [old-data (read-log-file ctype current-log)
+						datum (assoc form-map :ctype ctype
+																	:time (now)
+																	:id (read-string (str (:id form-map))))]
+				(do (write-log-file! ctype
+														 current-log
+														 (conj old-data datum))
+						(write-log-counter-file! ctype
+																		 current-log
+																		 (inc old-counter)))))))
 
 
 
