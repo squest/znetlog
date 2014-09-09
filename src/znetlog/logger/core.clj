@@ -10,6 +10,7 @@
 (def ldb (make-couch :couch-local
 										 "config.edn"))
 (def clog (atom {}))
+(def max-log-size 3000)
 
 (defn- now
 	"To provide an instance of joda time and return a string type"
@@ -84,7 +85,8 @@
 				(persist! db ctype))
 			(init-log! ctype)))
 
-(defn clean-current-log
+(defn- clean-current-log
+	"Clean up current log files and persist the data to database"
 	[db ctype current-log]
 	(do (persist! db
 								(log-file ctype
@@ -92,35 +94,47 @@
 			(write-log-counter-file! ctype current-log 0)
 			(write-log-file! ctype current-log [])))
 
-(defn first-post-log
+(defn- first-post-log
+	"The first post into an empty file, occurs everytime switching log happens"
 	[ctype new-log datum]
 	(do (switch-log! ctype new-log)
 			(write-log-counter-file! ctype new-log 1)
 			(write-log-file! ctype new-log [datum])))
 
-(defn subseq-post-log
+(defn- subseq-post-log
+	"Post a new log into the file, guaranteed to happens when current-log
+	 not reaching max-log-size"
 	[ctype current-log datum old-counter]
-	(do (write-log-file! ctype
-											 current-log
-											 (conj old-data datum))
-			(write-log-counter-file! ctype
-															 current-log
-															 (inc old-counter))))
+	(let [old-data (read-log-file ctype current-log)]
+		(do (write-log-file! ctype
+												 current-log
+												 (conj old-data datum))
+				(write-log-counter-file! ctype
+																 current-log
+																 (inc old-counter)))))
 
 (defn post!
+	"Post form-map from client to the file, upon reaching max-log-size,
+	it persists the data into database and switch the current-log"
 	[ctype form-map]
-	(let [current-log (get clog ctype)
+	(let [current-log (get @clog ctype)
 				old-counter (read-log-counter-file ctype current-log)
 				datum (assoc form-map :ctype ctype
 															:time (now)
 															:id (read-string (str (:id form-map))))]
-		(if (zero? (rem old-counter 5000))
+		(if (>= old-counter max-log-size)
 			(do (future (clean-current-log ldb ctype current-log))
 					(let [new-log (- 3 current-log)]
 						(first-post-log ctype new-log datum)))
-			(let [old-data (read-log-file ctype current-log)]
-				(subseq-post-log ctype current-log datum old-counter)))))
+			(subseq-post-log ctype current-log datum old-counter))))
 
-
+(defn destroy!
+	"Destroy all files, atoms, and other related to ctype"
+	[ctype]
+	(do (io/as-file (log-file ctype 1))
+			(io/as-file (log-file ctype 2))
+			(io/as-file (log-file ctype 1 true))
+			(io/as-file (log-file ctype 2 true))
+			(reset! clog (dissoc clog ctype))))
 
 

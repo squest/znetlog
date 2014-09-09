@@ -26,6 +26,7 @@
 	[whichdb fname]
 	(let [{db :db} (component/start whichdb)
 				data (if (.exists (io/as-file fname))
-							 (read-string (slurp fname))
+							 (map #(assoc % :class "log")
+										(read-string (slurp fname)))
 							 nil)]
 		(cl/bulk-update db data)))
