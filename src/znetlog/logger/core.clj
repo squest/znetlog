@@ -84,25 +84,42 @@
 				(persist! db ctype))
 			(init-log! ctype)))
 
+(defn clean-current-log
+	[db ctype current-log]
+	(do (persist! db
+								(log-file ctype
+													current-log))
+			(write-log-counter-file! ctype current-log 0)
+			(write-log-file! ctype current-log [])))
+
+(defn first-post-log
+	[ctype new-log datum]
+	(do (switch-log! ctype new-log)
+			(write-log-counter-file! ctype new-log 1)
+			(write-log-file! ctype new-log [datum])))
+
+(defn subseq-post-log
+	[ctype current-log datum old-counter]
+	(do (write-log-file! ctype
+											 current-log
+											 (conj old-data datum))
+			(write-log-counter-file! ctype
+															 current-log
+															 (inc old-counter))))
+
 (defn post!
 	[ctype form-map]
 	(let [current-log (get clog ctype)
-				old-counter (read-log-counter-file ctype current-log)]
+				old-counter (read-log-counter-file ctype current-log)
+				datum (assoc form-map :ctype ctype
+															:time (now)
+															:id (read-string (str (:id form-map))))]
 		(if (zero? (rem old-counter 5000))
-			(do (future (persist! ldb
-														(log-file ctype
-																			current-log)))
-					)
-			(let [old-data (read-log-file ctype current-log)
-						datum (assoc form-map :ctype ctype
-																	:time (now)
-																	:id (read-string (str (:id form-map))))]
-				(do (write-log-file! ctype
-														 current-log
-														 (conj old-data datum))
-						(write-log-counter-file! ctype
-																		 current-log
-																		 (inc old-counter)))))))
+			(do (future (clean-current-log ldb ctype current-log))
+					(let [new-log (- 3 current-log)]
+						(first-post-log ctype new-log datum)))
+			(let [old-data (read-log-file ctype current-log)]
+				(subseq-post-log ctype current-log datum old-counter)))))
 
 
 
