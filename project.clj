@@ -13,7 +13,7 @@
                  [prone "0.6.0"]
                  [enlive "1.1.5"]
                  [com.ashafa/clutch "0.4.0-RC1"]
-                 [zenedu.squest/questdb "0.2.0"]
+                 [zenedu.squest/questdb "0.2.1"]
 								 [com.stuartsierra/component "0.2.2"]
                  [expectations "2.0.9"]]
   
