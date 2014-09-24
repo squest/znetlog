@@ -1,6 +1,7 @@
 (ns znetlog.xplore.record)
 
 (defrecord Person
-					 [pname address age school])
+    [pname address age school])
+
 
 

@@ -1,0 +1,2 @@
+(ns znetlog.app.log)
+

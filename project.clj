@@ -14,7 +14,7 @@
                  [enlive "1.1.5"]
                  [com.ashafa/clutch "0.4.0-RC1"]
                  [zenedu.squest/questdb "0.2.1"]
-								 [com.stuartsierra/component "0.2.2"]
+                 [com.stuartsierra/component "0.2.2"]
                  [expectations "2.0.9"]]
   
   :ring {:handler znetlog.handler/app,
@@ -41,3 +41,4 @@
             [lein-autoexpect "1.2.2"]]
   :description "FIXME: write description"
   :min-lein-version "2.0.0")
+
